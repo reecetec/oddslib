@@ -1,6 +1,6 @@
 [project]
 name = "oddslib"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Lightweight odds and probability utilities for Python"
 readme = "README.md"
 authors = [
@@ -12,8 +12,13 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.8.8,<0.9.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=75.6.0", "setuptools-scm>=8.1.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
+
 
 [dependency-groups]
 dev = [

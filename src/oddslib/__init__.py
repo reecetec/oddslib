@@ -1,5 +1,9 @@
 """Public package exports."""
 
+from importlib.metadata import version
+
+__version__ = version("oddslib")
+
 from .formats import (
     DEFAULT_INPUT_FORMAT,
     DEFAULT_OUTPUT_FORMAT,
