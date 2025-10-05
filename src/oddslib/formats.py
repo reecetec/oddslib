@@ -1,8 +1,14 @@
 """Odds format definitions and helpers."""
+
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from enum import Enum
+from fractions import Fraction
+
+import numpy as np
+from numpy.typing import ArrayLike
 
 
 class OddsFormat(str, Enum):
@@ -21,7 +27,7 @@ class OddsFormat(str, Enum):
     ) -> "OddsFormat":
         """Return the enum member for ``value`` or fall back to ``default``.
 
-        Parsing is case-insensitive. ``default`` must be provided when ``value`` is ``None``.
+        Parsing is case-insensitive. ``default`` must be supplied when ``value`` is ``None``.
         """
 
         if value is None:
@@ -44,6 +50,42 @@ DEFAULT_INPUT_FORMAT = OddsFormat.AMERICAN
 DEFAULT_OUTPUT_FORMAT = OddsFormat.AMERICAN
 
 
+def _ensure_1d(values: ArrayLike, *, dtype: type | None = None) -> np.ndarray:
+    arr = np.asarray(values, dtype=dtype)
+    if arr.ndim == 0:
+        return np.expand_dims(arr, 0)
+    if arr.ndim == 1:
+        return arr
+    raise ValueError("Odds converters expect scalars or 1-D arrays")
+
+
+def _coerce_fractional_inputs(values: ArrayLike) -> list[object]:
+    if isinstance(values, np.ndarray):
+        if values.ndim == 0:
+            return [values.item()]
+        if values.ndim == 1:
+            return values.tolist()
+        raise ValueError("Fractional odds expect scalars or 1-D arrays")
+
+    if isinstance(values, (str, Fraction, int, float)):
+        return [values]
+
+    if isinstance(values, Iterable):
+        seq = list(values)
+        if not seq:
+            return []
+
+        def _is_component(item: object) -> bool:
+            return isinstance(item, (int, float, Fraction))
+
+        if len(seq) == 2 and all(_is_component(item) for item in seq):
+            return [tuple(seq)]
+
+        return seq
+
+    return [values]
+
+
 def get_input_odds_format() -> OddsFormat:
     """Return the input odds format, falling back to the package default."""
 
@@ -58,10 +100,138 @@ def get_output_odds_format() -> OddsFormat:
     return OddsFormat.parse(value, default=DEFAULT_OUTPUT_FORMAT)
 
 
+def resolve_input_format(fmt: str | OddsFormat | None = None) -> OddsFormat:
+    """Return a concrete input format, preferring explicit args over env defaults."""
+
+    if isinstance(fmt, OddsFormat):
+        return fmt
+    if fmt is None:
+        return get_input_odds_format()
+    return OddsFormat.parse(fmt, default=DEFAULT_INPUT_FORMAT)
+
+
+def resolve_output_format(fmt: str | OddsFormat | None = None) -> OddsFormat:
+    """Return a concrete output format, preferring explicit args over env defaults."""
+
+    if isinstance(fmt, OddsFormat):
+        return fmt
+    if fmt is None:
+        return get_output_odds_format()
+    return OddsFormat.parse(fmt, default=DEFAULT_OUTPUT_FORMAT)
+
+
+def odds_to_decimal(
+    odds: ArrayLike,
+    *,
+    odds_format: str | OddsFormat | None = None,
+) -> np.ndarray:
+    """Convert odds from the given format into decimal odds."""
+
+    fmt = resolve_input_format(odds_format)
+
+    if fmt is OddsFormat.DECIMAL:
+        return _ensure_1d(odds, dtype=np.float64)
+
+    if fmt is OddsFormat.AMERICAN:
+        a = _ensure_1d(odds, dtype=np.float64)
+        if np.any(a == 0):
+            raise ValueError("American odds cannot be zero")
+
+        positive = a > 0
+        dec = np.empty_like(a, dtype=np.float64)
+        dec[positive] = (a[positive] / 100.0) + 1.0
+        dec[~positive] = (100.0 / np.abs(a[~positive])) + 1.0
+        return dec
+
+    if fmt is OddsFormat.FRACTIONAL:
+        arr = _coerce_fractional_inputs(odds)
+
+        def _convert(value: object) -> float:
+            if isinstance(value, Fraction):
+                frac = value
+            elif isinstance(value, str):
+                frac = Fraction(value)
+            elif isinstance(value, (int, float)):
+                frac = Fraction(value).limit_denominator(1000)
+            elif isinstance(value, Iterable):
+                try:
+                    num, den = value
+                except ValueError as exc:
+                    raise ValueError("Fractional odds iterables must have two elements") from exc
+                frac = Fraction(num, den)
+            else:
+                raise TypeError(
+                    "Fractional odds must be provided as str, Fraction, number, or length-2 iterable"
+                )
+            if frac.numerator <= 0 or frac.denominator <= 0:
+                raise ValueError("Fractional odds require positive numerator and denominator")
+            return float(frac) + 1.0
+
+        converted = [_convert(item) for item in arr]
+        return np.asarray(converted, dtype=np.float64)
+
+    raise AssertionError(f"Unhandled odds format: {fmt}")
+
+
+def decimal_to_odds(
+    decimal_odds: ArrayLike,
+    *,
+    target_format: str | OddsFormat | None = None,
+) -> np.ndarray:
+    """Convert decimal odds into the requested format."""
+
+    fmt = resolve_output_format(target_format)
+    dec = _ensure_1d(decimal_odds, dtype=np.float64)
+    if np.any(dec < 1.0):
+        raise ValueError("Decimal odds must be >= 1.0")
+
+    if fmt is OddsFormat.DECIMAL:
+        return dec
+
+    if fmt is OddsFormat.AMERICAN:
+        american = np.empty_like(dec, dtype=np.float64)
+        long = dec >= 2.0
+        american[long] = (dec[long] - 1.0) * 100.0
+        short = ~long
+        american[short] = -100.0 / (dec[short] - 1.0)
+        return american
+
+    if fmt is OddsFormat.FRACTIONAL:
+        arr = dec - 1.0
+
+        def _convert(value: float) -> str:
+            frac = Fraction(value).limit_denominator(1000)
+            if frac.numerator <= 0 or frac.denominator <= 0:
+                raise ValueError("Fractional odds require positive ratio")
+            return f"{frac.numerator}/{frac.denominator}"
+
+        vectorized = np.vectorize(_convert, otypes=[object])
+        return vectorized(arr)
+
+    raise AssertionError(f"Unhandled odds format: {fmt}")
+
+
+def convert_odds(
+    odds: ArrayLike,
+    *,
+    from_format: str | OddsFormat | None = None,
+    to_format: str | OddsFormat | None = None,
+) -> np.ndarray:
+    """Convert odds from ``from_format`` into ``to_format`` via decimal odds."""
+
+    intermediate = odds_to_decimal(odds, odds_format=from_format)
+    return decimal_to_odds(intermediate, target_format=to_format)
+
+
 __all__ = [
     "DEFAULT_INPUT_FORMAT",
     "DEFAULT_OUTPUT_FORMAT",
     "OddsFormat",
+    "convert_odds",
+    "decimal_to_odds",
     "get_input_odds_format",
     "get_output_odds_format",
+    "odds_to_decimal",
+    "resolve_input_format",
+    "resolve_output_format",
 ]
