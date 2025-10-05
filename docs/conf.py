@@ -133,12 +133,12 @@ def _inject_alias_versions(app, config) -> None:  # type: ignore[override]
     if not metadata:
         return
 
-    alias_map = getattr(config, "smv_alias_map", {})
+    alias_map = dict(getattr(config, "smv_alias_map", {}))
 
     tags = {name: data for name, data in metadata.items() if data.get("source") == "tags"}
-    stable_name = None
+    stable_source_name = None
     if tags:
-        stable_name = max(tags, key=_safe_version)
+        stable_source_name = max(tags, key=_safe_version)
 
     main_name = None
     for candidate in ("main", "origin/main"):
@@ -148,24 +148,27 @@ def _inject_alias_versions(app, config) -> None:  # type: ignore[override]
 
     new_entries: dict[str, dict[str, object]] = {}
 
-    if stable_name and "stable" not in metadata:
-        stable_meta = metadata[stable_name]
+    if not stable_source_name and main_name:
+        stable_source_name = main_name
+
+    if stable_source_name and "stable" not in metadata:
+        stable_meta = metadata[stable_source_name]
         stable_dir = Path(stable_meta["outputdir"]).parent / "stable"
         alias_meta = {**stable_meta}
         alias_meta.update(
             {
                 "name": "stable",
                 "version": "stable",
-                "release": stable_name,
+                "release": stable_source_name,
                 "outputdir": str(stable_dir),
                 "source": "alias",
-                "is_released": True,
+                "is_released": stable_meta.get("is_released", True),
             }
         )
         new_entries["stable"] = alias_meta
         alias_map["stable"] = {
-            "source_name": stable_name,
-            "outputdir": stable_dir,
+            "source_name": stable_source_name,
+            "outputdir": str(stable_dir),
         }
 
     if main_name and "latest" not in metadata:
@@ -185,7 +188,7 @@ def _inject_alias_versions(app, config) -> None:  # type: ignore[override]
         new_entries["latest"] = alias_meta
         alias_map["latest"] = {
             "source_name": main_name,
-            "outputdir": latest_dir,
+            "outputdir": str(latest_dir),
         }
 
     if not new_entries:
