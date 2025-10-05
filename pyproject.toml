@@ -20,3 +20,14 @@ dev = [
     "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
 ]
+docs = [
+    "furo>=2025.9.25",
+    "ipykernel>=6.30.1",
+    "myst-parser>=3.0.1",
+    "nbsphinx>=0.9.7",
+    "pypandoc-binary>=1.15",
+    "sphinx>=7.4.7",
+    "sphinx-autoapi>=3.6.0",
+    "sphinx-autobuild>=2024.10.3",
+    "sphinx-multiversion>=0.2.4",
+]
