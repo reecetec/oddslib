@@ -68,6 +68,18 @@ def test_fractional_to_decimal(fractional, expected):
     np.testing.assert_allclose(result, np.asarray(expected, dtype=np.float64))
 
 
+def test_scalar_returns_scalar_float():
+    american = odds_to_decimal(-120, odds_format=OddsFormat.AMERICAN)
+    assert isinstance(american, float)
+    assert american == pytest.approx(1.8333333333)
+
+
+def test_scalar_fractional_to_decimal_returns_float():
+    decimal = odds_to_decimal("5/2", odds_format=OddsFormat.FRACTIONAL)
+    assert isinstance(decimal, float)
+    assert decimal == pytest.approx(3.5)
+
+
 def test_decimal_to_american_roundtrip():
     decimal = [2.1, 1.91]
     american = decimal_to_odds(decimal, target_format=OddsFormat.AMERICAN)
@@ -81,12 +93,27 @@ def test_decimal_to_fractional_strings():
     assert list(fractional) == ["5/2", "1/4"]
 
 
+def test_decimal_to_odds_scalar_preserves_shape():
+    american = decimal_to_odds(1.91, target_format=OddsFormat.AMERICAN)
+    fractional = decimal_to_odds(3.5, target_format=OddsFormat.FRACTIONAL)
+    assert isinstance(american, float)
+    assert isinstance(fractional, str)
+    assert american == pytest.approx(-109.89010989010989)
+    assert fractional == "5/2"
+
+
 def test_convert_router():
     american = [110, -200]
     fractional = convert_odds(
         american, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.FRACTIONAL
     )
     assert list(fractional) == ["11/10", "1/2"]
+
+
+def test_convert_scalar_router():
+    fractional = convert_odds(110, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.FRACTIONAL)
+    assert isinstance(fractional, str)
+    assert fractional == "11/10"
 
 
 def test_invalid_american_zero():

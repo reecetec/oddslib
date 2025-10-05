@@ -9,7 +9,7 @@ from fractions import Fraction
 
 import numpy as np
 from numpy.typing import ArrayLike
-from typing import cast
+from typing import cast, overload
 
 
 class OddsFormat(str, Enum):
@@ -51,6 +51,9 @@ DEFAULT_INPUT_FORMAT = OddsFormat.AMERICAN
 DEFAULT_OUTPUT_FORMAT = OddsFormat.AMERICAN
 
 
+ScalarOddsInput = int | float | Fraction | str | np.generic
+
+
 def _ensure_1d(values: ArrayLike, *, dtype: type | None = None) -> np.ndarray:
     arr = np.asarray(values, dtype=dtype)
     if arr.ndim == 0:
@@ -87,6 +90,17 @@ def _coerce_fractional_inputs(values: ArrayLike) -> list[object]:
     return [cast(object, values)]
 
 
+def _is_scalar_input(value: ArrayLike) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.ndim == 0
+    if isinstance(value, (np.generic, str, Fraction, int, float)):
+        return True
+    if isinstance(value, tuple):
+        if len(value) == 2 and all(isinstance(item, (int, float, Fraction, np.generic)) for item in value):
+            return True
+    return np.isscalar(value)
+
+
 def get_input_odds_format() -> OddsFormat:
     """Return the input odds format, falling back to the package default."""
 
@@ -121,17 +135,41 @@ def resolve_output_format(fmt: str | OddsFormat | None = None) -> OddsFormat:
     return OddsFormat.parse(fmt, default=DEFAULT_OUTPUT_FORMAT)
 
 
+@overload
+def odds_to_decimal(
+    odds: ScalarOddsInput,
+    *,
+    odds_format: str | OddsFormat | None = None,
+) -> float:
+    ...
+
+
+@overload
 def odds_to_decimal(
     odds: ArrayLike,
     *,
     odds_format: str | OddsFormat | None = None,
 ) -> np.ndarray:
-    """Convert odds from the given format into decimal odds."""
+    ...
 
+
+def odds_to_decimal(
+    odds: ArrayLike,
+    *,
+    odds_format: str | OddsFormat | None = None,
+) -> float | np.ndarray:
+    """Convert odds from the given format into decimal odds.
+
+    Accepts scalars or 1-D array-likes. The return value mirrors the input shape:
+    scalar inputs yield scalars; iterable inputs yield ``np.ndarray``.
+    """
+
+    scalar_input = _is_scalar_input(odds)
     fmt = resolve_input_format(odds_format)
 
     if fmt is OddsFormat.DECIMAL:
-        return _ensure_1d(odds, dtype=np.float64)
+        result = _ensure_1d(odds, dtype=np.float64)
+        return cast(float, result.item()) if scalar_input else result
 
     if fmt is OddsFormat.AMERICAN:
         a = _ensure_1d(odds, dtype=np.float64)
@@ -142,10 +180,11 @@ def odds_to_decimal(
         dec = np.empty_like(a, dtype=np.float64)
         dec[positive] = (a[positive] / 100.0) + 1.0
         dec[~positive] = (100.0 / np.abs(a[~positive])) + 1.0
-        return dec
+        return cast(float, dec.item()) if scalar_input else dec
 
     if fmt is OddsFormat.FRACTIONAL:
         arr = _coerce_fractional_inputs(odds)
+        scalar_fractional = scalar_input or (len(arr) == 1)
 
         def _convert(value: object) -> float:
             if isinstance(value, Fraction):
@@ -169,25 +208,48 @@ def odds_to_decimal(
             return float(frac) + 1.0
 
         converted = [_convert(item) for item in arr]
-        return np.asarray(converted, dtype=np.float64)
+        result = np.asarray(converted, dtype=np.float64)
+        return cast(float, result.item()) if scalar_fractional else result
 
     raise AssertionError(f"Unhandled odds format: {fmt}")
+
+
+@overload
+def decimal_to_odds(
+    decimal_odds: ScalarOddsInput,
+    *,
+    target_format: str | OddsFormat | None = None,
+) -> float | str:
+    ...
+
+
+@overload
+def decimal_to_odds(
+    decimal_odds: ArrayLike,
+    *,
+    target_format: str | OddsFormat | None = None,
+) -> np.ndarray:
+    ...
 
 
 def decimal_to_odds(
     decimal_odds: ArrayLike,
     *,
     target_format: str | OddsFormat | None = None,
-) -> np.ndarray:
-    """Convert decimal odds into the requested format."""
+) -> float | str | np.ndarray:
+    """Convert decimal odds into the requested format.
+
+    Returns a scalar when ``decimal_odds`` is scalar; otherwise a 1-D array.
+    """
 
     fmt = resolve_output_format(target_format)
+    scalar_input = _is_scalar_input(decimal_odds)
     dec = _ensure_1d(decimal_odds, dtype=np.float64)
     if np.any(dec < 1.0):
         raise ValueError("Decimal odds must be >= 1.0")
 
     if fmt is OddsFormat.DECIMAL:
-        return dec
+        return cast(float, dec.item()) if scalar_input else dec
 
     if fmt is OddsFormat.AMERICAN:
         american = np.empty_like(dec, dtype=np.float64)
@@ -195,7 +257,7 @@ def decimal_to_odds(
         american[long] = (dec[long] - 1.0) * 100.0
         short = ~long
         american[short] = -100.0 / (dec[short] - 1.0)
-        return american
+        return cast(float, american.item()) if scalar_input else american
 
     if fmt is OddsFormat.FRACTIONAL:
         arr = dec - 1.0
@@ -207,9 +269,30 @@ def decimal_to_odds(
             return f"{frac.numerator}/{frac.denominator}"
 
         vectorized = np.vectorize(_convert, otypes=[object])
-        return vectorized(arr)
+        fractional = vectorized(arr)
+        return cast(str, fractional.item()) if scalar_input else fractional
 
     raise AssertionError(f"Unhandled odds format: {fmt}")
+
+
+@overload
+def convert_odds(
+    odds: ScalarOddsInput,
+    *,
+    from_format: str | OddsFormat | None = None,
+    to_format: str | OddsFormat | None = None,
+) -> float | str:
+    ...
+
+
+@overload
+def convert_odds(
+    odds: ArrayLike,
+    *,
+    from_format: str | OddsFormat | None = None,
+    to_format: str | OddsFormat | None = None,
+) -> np.ndarray:
+    ...
 
 
 def convert_odds(
@@ -217,8 +300,11 @@ def convert_odds(
     *,
     from_format: str | OddsFormat | None = None,
     to_format: str | OddsFormat | None = None,
-) -> np.ndarray:
-    """Convert odds from ``from_format`` into ``to_format`` via decimal odds."""
+) -> float | str | np.ndarray:
+    """Convert odds from ``from_format`` into ``to_format`` via decimal odds.
+
+    Mirrors the shape of the input odds.
+    """
 
     intermediate = odds_to_decimal(odds, odds_format=from_format)
     return decimal_to_odds(intermediate, target_format=to_format)
