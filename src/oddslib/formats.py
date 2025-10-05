@@ -9,6 +9,7 @@ from fractions import Fraction
 
 import numpy as np
 from numpy.typing import ArrayLike
+from typing import cast
 
 
 class OddsFormat(str, Enum):
@@ -62,16 +63,16 @@ def _ensure_1d(values: ArrayLike, *, dtype: type | None = None) -> np.ndarray:
 def _coerce_fractional_inputs(values: ArrayLike) -> list[object]:
     if isinstance(values, np.ndarray):
         if values.ndim == 0:
-            return [values.item()]
+            return [cast(object, values.item())]
         if values.ndim == 1:
-            return values.tolist()
+            return [cast(object, item) for item in values.tolist()]
         raise ValueError("Fractional odds expect scalars or 1-D arrays")
 
     if isinstance(values, (str, Fraction, int, float)):
-        return [values]
+        return [cast(object, values)]
 
     if isinstance(values, Iterable):
-        seq = list(values)
+        seq = [cast(object, item) for item in values]
         if not seq:
             return []
 
@@ -79,11 +80,11 @@ def _coerce_fractional_inputs(values: ArrayLike) -> list[object]:
             return isinstance(item, (int, float, Fraction))
 
         if len(seq) == 2 and all(_is_component(item) for item in seq):
-            return [tuple(seq)]
+            return [cast(object, tuple(seq))]
 
         return seq
 
-    return [values]
+    return [cast(object, values)]
 
 
 def get_input_odds_format() -> OddsFormat:
