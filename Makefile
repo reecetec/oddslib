@@ -11,5 +11,5 @@ docs-live:
 docs-clean:
 	rm -rf docs/_build
 
-docs-multiversion:
+docs-multiversion: docs-clean
 	uv run --group docs sphinx-multiversion docs docs/_build/html
