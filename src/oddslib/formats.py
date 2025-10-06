@@ -9,7 +9,7 @@ from fractions import Fraction
 
 import numpy as np
 from numpy.typing import ArrayLike
-from typing import cast, overload
+from typing import Union, cast, overload
 
 
 class OddsFormat(str, Enum):
@@ -51,7 +51,7 @@ DEFAULT_INPUT_FORMAT = OddsFormat.AMERICAN
 DEFAULT_OUTPUT_FORMAT = OddsFormat.AMERICAN
 
 
-ScalarOddsInput = int | float | Fraction | str | np.generic
+ScalarOddsInput = Union[int, float, Fraction, str, np.generic]
 
 
 def _ensure_1d(values: ArrayLike, *, dtype: type | None = None) -> np.ndarray:
