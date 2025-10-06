@@ -178,6 +178,17 @@ def test_invalid_american_zero():
         odds_to_decimal(0, odds_format=OddsFormat.AMERICAN)
 
 
+@pytest.mark.parametrize("american", [91, 50.0, -90])
+def test_invalid_american_range(american):
+    with pytest.raises(ValueError):
+        odds_to_decimal(american, odds_format=OddsFormat.AMERICAN)
+
+
+def test_invalid_american_range_vector():
+    with pytest.raises(ValueError):
+        odds_to_decimal([150, 91], odds_format=OddsFormat.AMERICAN)
+
+
 def test_invalid_decimal_low():
     with pytest.raises(ValueError):
         decimal_to_odds(0.99, target_format=OddsFormat.AMERICAN)

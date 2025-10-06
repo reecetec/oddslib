@@ -175,6 +175,12 @@ def odds_to_decimal(
         a = _ensure_1d(odds, dtype=np.float64)
         if np.any(a == 0):
             raise ValueError("American odds cannot be zero")
+        invalid = np.abs(a) < 100
+        if np.any(invalid):
+            bad_values = ", ".join(str(value) for value in a[invalid])
+            raise ValueError(
+                "American odds must be <= -100 or >= 100; received: " + bad_values
+            )
 
         positive = a > 0
         dec = np.empty_like(a, dtype=np.float64)
