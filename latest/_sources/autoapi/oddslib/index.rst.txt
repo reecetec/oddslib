@@ -1,0 +1,136 @@
+oddslib
+=======
+
+.. py:module:: oddslib
+
+.. autoapi-nested-parse::
+
+   Public package exports.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/oddslib/formats/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   oddslib.DEFAULT_INPUT_FORMAT
+   oddslib.DEFAULT_OUTPUT_FORMAT
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   oddslib.OddsFormat
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   oddslib.convert_odds
+   oddslib.decimal_to_odds
+   oddslib.get_input_odds_format
+   oddslib.get_output_odds_format
+   oddslib.odds_to_decimal
+   oddslib.resolve_input_format
+   oddslib.resolve_output_format
+
+
+Package Contents
+----------------
+
+.. py:data:: DEFAULT_INPUT_FORMAT
+
+.. py:data:: DEFAULT_OUTPUT_FORMAT
+
+.. py:class:: OddsFormat
+
+   Bases: :py:obj:`str`, :py:obj:`enum.Enum`
+
+
+   Supported odds representations for IO conversion layers.
+
+
+   .. py:attribute:: DECIMAL
+      :value: 'decimal'
+
+
+
+   .. py:attribute:: AMERICAN
+      :value: 'american'
+
+
+
+   .. py:attribute:: FRACTIONAL
+      :value: 'fractional'
+
+
+
+   .. py:method:: parse(value: str | None, *, default: OddsFormat | None = None) -> OddsFormat
+      :classmethod:
+
+
+      Return the enum member for ``value`` or fall back to ``default``.
+
+      Parsing is case-insensitive. ``default`` must be supplied when ``value`` is ``None``.
+
+
+
+.. py:function:: convert_odds(odds: ScalarOddsInput, *, from_format: str | OddsFormat | None = None, to_format: str | OddsFormat | None = None) -> float | str
+                 convert_odds(odds: numpy.typing.ArrayLike, *, from_format: str | OddsFormat | None = None, to_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert odds from ``from_format`` into ``to_format`` via decimal odds.
+
+   Mirrors the shape of the input odds.
+
+
+.. py:function:: decimal_to_odds(decimal_odds: ScalarOddsInput, *, target_format: str | OddsFormat | None = None) -> float | str
+                 decimal_to_odds(decimal_odds: numpy.typing.ArrayLike, *, target_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert decimal odds into the requested format.
+
+   Returns a scalar when ``decimal_odds`` is scalar; otherwise a 1-D array.
+
+
+.. py:function:: get_input_odds_format() -> OddsFormat
+
+   Return the input odds format, falling back to the package default.
+
+
+.. py:function:: get_output_odds_format() -> OddsFormat
+
+   Return the output odds format, falling back to the package default.
+
+
+.. py:function:: odds_to_decimal(odds: ScalarOddsInput, *, odds_format: str | OddsFormat | None = None) -> float
+                 odds_to_decimal(odds: numpy.typing.ArrayLike, *, odds_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert odds from the given format into decimal odds.
+
+   Accepts scalars or 1-D array-likes. The return value mirrors the input shape:
+   scalar inputs yield scalars; iterable inputs yield ``np.ndarray``.
+
+
+.. py:function:: resolve_input_format(fmt: str | OddsFormat | None = None) -> OddsFormat
+
+   Return a concrete input format, preferring explicit args over env defaults.
+
+
+.. py:function:: resolve_output_format(fmt: str | OddsFormat | None = None) -> OddsFormat
+
+   Return a concrete output format, preferring explicit args over env defaults.
+
+

@@ -1,0 +1,126 @@
+oddslib
+=======
+
+.. py:module:: oddslib
+
+.. autoapi-nested-parse::
+
+   Public package exports.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/oddslib/formats/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   oddslib.DEFAULT_INPUT_FORMAT
+   oddslib.DEFAULT_OUTPUT_FORMAT
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   oddslib.OddsFormat
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   oddslib.convert_odds
+   oddslib.decimal_to_odds
+   oddslib.get_input_odds_format
+   oddslib.get_output_odds_format
+   oddslib.odds_to_decimal
+   oddslib.resolve_input_format
+   oddslib.resolve_output_format
+
+
+Package Contents
+----------------
+
+.. py:data:: DEFAULT_INPUT_FORMAT
+
+.. py:data:: DEFAULT_OUTPUT_FORMAT
+
+.. py:class:: OddsFormat
+
+   Bases: :py:obj:`str`, :py:obj:`enum.Enum`
+
+
+   Supported odds representations for IO conversion layers.
+
+
+   .. py:attribute:: DECIMAL
+      :value: 'decimal'
+
+
+
+   .. py:attribute:: AMERICAN
+      :value: 'american'
+
+
+
+   .. py:attribute:: FRACTIONAL
+      :value: 'fractional'
+
+
+
+   .. py:method:: parse(value: str | None, *, default: OddsFormat | None = None) -> OddsFormat
+      :classmethod:
+
+
+      Return the enum member for ``value`` or fall back to ``default``.
+
+      Parsing is case-insensitive. ``default`` must be supplied when ``value`` is ``None``.
+
+
+
+.. py:function:: convert_odds(odds: numpy.typing.ArrayLike, *, from_format: str | OddsFormat | None = None, to_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert odds from ``from_format`` into ``to_format`` via decimal odds.
+
+
+.. py:function:: decimal_to_odds(decimal_odds: numpy.typing.ArrayLike, *, target_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert decimal odds into the requested format.
+
+
+.. py:function:: get_input_odds_format() -> OddsFormat
+
+   Return the input odds format, falling back to the package default.
+
+
+.. py:function:: get_output_odds_format() -> OddsFormat
+
+   Return the output odds format, falling back to the package default.
+
+
+.. py:function:: odds_to_decimal(odds: numpy.typing.ArrayLike, *, odds_format: str | OddsFormat | None = None) -> numpy.ndarray
+
+   Convert odds from the given format into decimal odds.
+
+
+.. py:function:: resolve_input_format(fmt: str | OddsFormat | None = None) -> OddsFormat
+
+   Return a concrete input format, preferring explicit args over env defaults.
+
+
+.. py:function:: resolve_output_format(fmt: str | OddsFormat | None = None) -> OddsFormat
+
+   Return a concrete output format, preferring explicit args over env defaults.
+
+
