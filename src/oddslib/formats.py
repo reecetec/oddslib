@@ -252,11 +252,18 @@ def decimal_to_odds(
         return cast(float, dec.item()) if scalar_input else dec
 
     if fmt is OddsFormat.AMERICAN:
-        american = np.empty_like(dec, dtype=np.float64)
-        long = dec >= 2.0
-        american[long] = (dec[long] - 1.0) * 100.0
-        short = ~long
-        american[short] = -100.0 / (dec[short] - 1.0)
+
+        def _convert(value: float) -> float:
+            frac = Fraction(value).limit_denominator(1000)
+            if frac >= 2:
+                return float((frac - 1) * 100)
+            ratio = frac - 1
+            if ratio == 0:
+                raise ValueError("Decimal odds of 1.0 cannot be represented as American odds")
+            return float(-100 / ratio)
+
+        vectorized = np.vectorize(_convert, otypes=[np.float64])
+        american = vectorized(dec)
         return cast(float, american.item()) if scalar_input else american
 
     if fmt is OddsFormat.FRACTIONAL:

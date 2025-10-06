@@ -116,6 +116,63 @@ def test_convert_scalar_router():
     assert fractional == "11/10"
 
 
+def test_scalar_american_roundtrip_exact():
+    american = -110
+    decimal = convert_odds(american, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.DECIMAL)
+    assert decimal == pytest.approx(1.9090909090909092)
+    roundtrip = convert_odds(decimal, from_format=OddsFormat.DECIMAL, to_format=OddsFormat.AMERICAN)
+    assert isinstance(roundtrip, float)
+    assert roundtrip == american
+
+
+def test_vector_roundtrip_exact_for_integer_books():
+    american = np.asarray([150.0, -110.0, 100.0])
+    decimal = convert_odds(american, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.DECIMAL)
+    restored = convert_odds(decimal, from_format=OddsFormat.DECIMAL, to_format=OddsFormat.AMERICAN)
+    np.testing.assert_allclose(restored, american)
+
+
+@pytest.mark.parametrize(
+    "fractional, expected",
+    [(["5/2", "11/4"], ["5/2", "11/4"]), (((3, 1), (5, 2)), ["3/1", "5/2"])],
+)
+def test_fractional_decimal_roundtrip_vector(fractional, expected):
+    decimal = convert_odds(fractional, from_format=OddsFormat.FRACTIONAL, to_format=OddsFormat.DECIMAL)
+    restored = convert_odds(decimal, from_format=OddsFormat.DECIMAL, to_format=OddsFormat.FRACTIONAL)
+    assert list(restored) == expected
+
+
+def test_fractional_decimal_roundtrip_scalar():
+    fractional = "7/5"
+    decimal = convert_odds(fractional, from_format=OddsFormat.FRACTIONAL, to_format=OddsFormat.DECIMAL)
+    roundtrip = convert_odds(decimal, from_format=OddsFormat.DECIMAL, to_format=OddsFormat.FRACTIONAL)
+    assert isinstance(roundtrip, str)
+    assert roundtrip == fractional
+
+
+def test_decimal_fractional_roundtrip_scalar():
+    decimal = 2.75
+    fractional = convert_odds(decimal, from_format=OddsFormat.DECIMAL, to_format=OddsFormat.FRACTIONAL)
+    roundtrip = convert_odds(fractional, from_format=OddsFormat.FRACTIONAL, to_format=OddsFormat.DECIMAL)
+    assert isinstance(roundtrip, float)
+    assert roundtrip == pytest.approx(decimal)
+
+
+def test_american_fractional_roundtrip_scalar():
+    american = 150
+    fractional = convert_odds(american, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.FRACTIONAL)
+    roundtrip = convert_odds(fractional, from_format=OddsFormat.FRACTIONAL, to_format=OddsFormat.AMERICAN)
+    assert isinstance(roundtrip, float)
+    assert roundtrip == pytest.approx(american)
+
+
+def test_american_fractional_roundtrip_vector():
+    american = np.asarray([-110.0, 145.0])
+    fractional = convert_odds(american, from_format=OddsFormat.AMERICAN, to_format=OddsFormat.FRACTIONAL)
+    restored = convert_odds(fractional, from_format=OddsFormat.FRACTIONAL, to_format=OddsFormat.AMERICAN)
+    np.testing.assert_allclose(restored, american)
+
+
 def test_invalid_american_zero():
     with pytest.raises(ValueError):
         odds_to_decimal(0, odds_format=OddsFormat.AMERICAN)
